@@ -8,14 +8,20 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
-
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import android.app.Activity;
 
 import androidx.test.espresso.action.ViewActions;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
+import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
+import androidx.test.runner.lifecycle.Stage;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,6 +74,52 @@ public class MainActivityTest {
         // You can also use anything() in place of is(instanceOf(String.class))
         onData(is(instanceOf(String.class)))
             .inAdapterView(withId(R.id.city_list))
-            .atPosition(0).check(matches((withText("Edmonton"))));
+            .atPosition(0).check(matches(withText("Edmonton")));
+    }
+
+    public Activity getCurrentActivity() {
+        final Activity[] current = { null };
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            java.util.Collection<Activity> resumed =
+                ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED);
+            if (!resumed.isEmpty()) {
+                current[0] = resumed.iterator().next();
+            }
+        });
+        return current[0];
+    }
+
+    @Test
+    public void testViewSwitch() {
+        // Add a city
+        onView(withId(R.id.button_add)).perform(click());
+        onView(withId(R.id.editText_name)).perform(ViewActions.typeText("Edmonton"));
+        onView(withId(R.id.button_confirm)).perform(click());
+        // Add Atlanta
+        onView(withId(R.id.button_add)).perform(click());
+        onView(withId(R.id.editText_name)).perform(ViewActions.typeText("Atlanta"));
+        onView(withId(R.id.button_confirm)).perform(click());
+
+        onData(is(instanceOf(String.class)))
+            .inAdapterView(withId(R.id.city_list))
+            .atPosition(1).perform(click());
+
+        Activity a = getCurrentActivity();
+        assertNotNull(a);
+        assertTrue(a instanceof ShowActivity);
+        onView(withId(R.id.city_name_view)).check(matches(withText("Atlanta")));
+
+        onView(withId(R.id.back_button)).perform(click());
+        a = getCurrentActivity();
+        assertNotNull(a);
+        assertTrue(a instanceof MainActivity);
+
+        onData(is(instanceOf(String.class)))
+            .inAdapterView(withId(R.id.city_list))
+            .atPosition(0).perform(click());
+        a = getCurrentActivity();
+        assertNotNull(a);
+        assertTrue(a instanceof ShowActivity);
+        onView(withId(R.id.city_name_view)).check(matches(withText("Edmonton")));
     }
 }
